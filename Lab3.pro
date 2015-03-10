@@ -5,5 +5,15 @@ CONFIG -= qt
 
 SOURCES += \
     client.c \
-    server.c
+    server.c \
+    Untitled Folder/NetState.c \
+    Untitled Folder/NetState.c \
+    Net.c
+
+HEADERS += \
+    Untitled Folder/NetState.h \
+    Untitled Folder/NetState.h \
+    NetState.h \
+    Net.h \
+    Packet.h
 

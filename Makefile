@@ -13,6 +13,6 @@ clean:
 	rm -f ${PROGRAMS}
 
 client: 
-	${CC} ${COPT} -o client client.c
+	${CC} ${COPT} -o client client.c Net.c
 server: 
-	${CC} ${COPT} -o server server.c
+	${CC} ${COPT} -o server server.c Net.c
