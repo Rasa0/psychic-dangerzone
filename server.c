@@ -7,17 +7,18 @@ int main(void)
 {
     NetState* state = ServerCreate(DEBUG_PORT);
 
-    printf("Reading\n");
+    //printf("Reading\n");
     while(1) {
 
 
 
         char data = ServerRead(state);
 
-        printf("%c", data);
+        //printf("%c", data);
 
 
-        //sleep(10);
+
+        usleep(1000 * 1000);
     }
 
     return 0;

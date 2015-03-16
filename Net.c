@@ -34,8 +34,6 @@ NetState* ServerCreate(int port) {
         printf("Server Could not bind\n");
     }
 
-    printf("Server socket %d\n", state->sock);
-
     return state;
 }
 
@@ -47,29 +45,6 @@ NetState* ClientCreate(char* ip, int port) {
     state->sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
     state->port = port;
     memcpy(state->ip, ip, sizeof(state->ip));
-
-    /*
-    struct sockaddr_in addr;
-    // zero out the structure
-    memset((char *) &addr, 0, sizeof(struct sockaddr_in));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-*/
-
-
-
-
-    /*
-    if(bind(state->sock , (struct sockaddr*)&addr, sizeof(struct sockaddr_in)) == -1 ) {
-        printf("Server Could not bind\n");
-    }
-    */
-
-
-
-    printf("Client socket %d\n", state->sock);
-
 
     return state;
 }
@@ -106,25 +81,28 @@ char ServerRead(NetState* state) {
     int length;
     socklen_t slen;
 
-    //printf("Server start read\n");
+    printf("Read");
 
 
-    length = recvfrom(state->sock, &packet, sizeof(DataPacket), 0, (struct sockaddr*) &receiv_addr, &slen);
+    length = recvfrom(state->sock, &packet, sizeof(DataPacket), MSG_DONTWAIT, (struct sockaddr*) &receiv_addr, &slen);
 
-    //printf("Server read end: %c\n", packet.data);
-
-    //MSG_DONTWAIT
-    /*
-    if(length == EWOULDBLOCK) {
-        // NO DATA
+    if(length == EAGAIN || length == -1) {
+        printf("ing: No data\n");
+        printf("length: %d\n", length);
+        return ' ';
+    } else {
+        printf("ing: %c\n", packet.data);
+        printf("length: %d\n", length);
+        return packet.data;
     }
-    */
 
+    /*
     if(length) {
         return packet.data;
     } else {
         return ' ';
     }
+    */
 }
 
 
