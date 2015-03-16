@@ -1,25 +1,50 @@
 #include <stdio.h>
+#include <unistd.h>
+#include <pthread.h>
 
 #include "Net.h"
+
+// Thread that keep polling the network, eventhough client input is blocking
+void* PollThread(void* args) {
+    NetState* state = (NetState*)args;
+
+    while(1) {
+        ClientPoll(state);
+        usleep(10 * 1000);
+    }
+}
+
+
 
 int main(void)
 {
     NetState* state = ClientCreate("127.0.0.1", DEBUG_PORT);
+    pthread_t thread;
+    pthread_attr_t threadAttr;
 
+    if(state) {
+        pthread_attr_init(&threadAttr);
 
+        if(pthread_create(&thread,&threadAttr, &PollThread, (void*)state) < 0) {
+            printf("Couldn't create thread\n");
 
+            // TODO fix graceful exit
+        } else {
 
-    while(1) {
+            while(1) {
 
-        char c = getchar();
-        fflush(stdin);
+                char c = getchar();
+                fflush(stdin);
 
-        ClientSend(state, c);
+                ClientSendData(state, c);
 
+                //ClientReadTEST(state);
+            }
+    }
+    } else {
+        printf("Could not connect to server!\n");
     }
 
-
-    printf("Hello World!\n");
     return 0;
 }
 

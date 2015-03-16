@@ -8,12 +8,18 @@ SOURCES += \
     server.c \
     Untitled Folder/NetState.c \
     Untitled Folder/NetState.c \
-    Net.c
+    Net.c \
+    NetShared.c \
+    Checksum.c \
+    SlidingWindow.c
 
 HEADERS += \
     Untitled Folder/NetState.h \
     Untitled Folder/NetState.h \
     NetState.h \
     Net.h \
-    Packet.h
+    Packet.h \
+    NetShared.h \
+    Checksum.h \
+    SlidingWindow.h
 
