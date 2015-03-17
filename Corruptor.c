@@ -1,17 +1,21 @@
 #include <time.h>
 #include <stdlib.h>
+#include <sys/timeb.h>
 
 Void ReOrderGen(unsigned char* message, int nBytes,int ReOrderRate)
 {
-    int et = 10+ rand()%70;
-    int t = rand()%100;
+    {   struct timeb tmb;
+        ftime(&tmb);
 
-    if(t < ReOrderRate)
-    {
-        InsertInQueue(packet,time+et);
-    }
-    else
-       InsertInQueue(message,time+10);
+        int et = (10+ rand()%70)/100;
+        int t = rand()%100;
+
+        if(t < ReOrderRate)
+        {
+            InsertInQueue(packet,tmb.millitm+et);
+        }
+        else
+           InsertInQueue(message,tmb.millitm+0.01);
 }
 
 Void PaketLossGen(unsigned char* message, int nBytes,int PaketLossRate,int ReOrderRate)
