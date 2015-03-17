@@ -1,11 +1,13 @@
 #ifndef NET_H
 #define NET_H
 
-#define DEBUG_PORT 12344
+#define DEBUG_PORT 12312
 
 #define POLL_STATUS_NOTHING 0
 #define POLL_STATUS_GLOBAL_TIMEOUT 1
 #define POLL_STATUS_MESSAGE_RECEIVED 2
+
+#define HANDSHAKE_RESEND_TIMEOUT 1.0
 
 #include "NetState.h"
 #include "NetShared.h"
@@ -42,8 +44,7 @@ void _ClientSendAck(NetState* state);
 
 void _ServerSendSynAck(NetState* state);
 
-
-void _ClientHandShake(NetState* state);
-void _SeverHandShake(NetState* state);
+// Return 1 if handshake succeded
+int _ClientHandShake(NetState* state);
 
 #endif

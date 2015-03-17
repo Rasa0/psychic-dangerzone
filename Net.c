@@ -48,21 +48,50 @@ NetState* ServerCreate(int port) {
 NetState* ClientCreate(char* ip, int port) {
 
     NetState* state = (NetState*)malloc(sizeof(NetState));
-    struct in_addr addr;
+    //struct in_addr addr;
 
     //Create socket
     state->sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
     state->port = port;
     memcpy(state->ip, ip, sizeof(state->ip));
-    inet_aton(ip , &addr);
-    state->netIp = addr.s_addr;
+    //inet_aton(ip , &addr);
+    //state->netIp = addr.s_addr;
 
+    /*
+    // test client binding
+    struct sockaddr_in addr;
+    // zero out the structure
+    memset((char *) &addr, 0, sizeof(struct sockaddr_in));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port+1);
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+    if(bind(state->sock , (struct sockaddr*)&addr, sizeof(struct sockaddr_in)) == -1) {
+        printf("Server Could not bind\n");
+    }
+    */
+
+
+    memset((char *) &state->remoteAddr, 0, sizeof(struct sockaddr_in));
+    state->remoteAddr.sin_family = AF_INET;
+    state->remoteAddr.sin_port = htons(state->port);
+
+    if (inet_aton(state->ip , &state->remoteAddr.sin_addr) == 0)
+    {
+        fprintf(stderr, "inet_aton() failed\n");
+        exit(1);
+    }
 
     // TODO FIX
     //InitSlidingWindow(&state->slidingWindow);
 
     // Perform handshake
-    _ClientHandShake(state);
+    if(!_ClientHandShake(state)) {
+        // Failed connection?
+        close(state->sock);
+        free(state);
+        state = 0;
+    }
 
     return state;
 }
@@ -99,19 +128,6 @@ int ClientPoll(NetState* state) {
 
 void ClientSendData(NetState* state, char data) {
 
-    //DataPacket packet;
-    struct sockaddr_in targetAddr;
-
-    memset((char *) &targetAddr, 0, sizeof(struct sockaddr_in));
-    targetAddr.sin_family = AF_INET;
-    targetAddr.sin_port = htons(state->port);
-    targetAddr.sin_addr.s_addr = state->netIp;
-
-    //packet.data = data;
-
-    // DURRRRR WARNING
-    data = 4;
-
     // TODO send to sliding window function
 
 
@@ -140,9 +156,6 @@ int ServerPoll(NetState* state) {
 
                 _ServerSendSynAck(state);
 
-
-
-
                 printf("Switching state to handshake\n");
                 state->state = STATE_THREEWAY_HANDSHAKE;
             } else {
@@ -153,24 +166,59 @@ int ServerPoll(NetState* state) {
         return POLL_STATUS_NOTHING;
         break;
     case STATE_THREEWAY_HANDSHAKE:
+        {
+            // Timer for resend timeout
+            time_t timeout;
+            time_t currtime;
+            time(&timeout);
 
+            //Listen for syn ack.
+            while(1) {
 
-        if(TestGlobalTimeout(state)) {
-            // Connection closed. Return to not connected state
-            state->state = STATE_NOT_CONNECTED;
-            return POLL_STATUS_GLOBAL_TIMEOUT;
-        } else {
+                if(TestGlobalTimeout(state)) {
+                    // Global time out triggered?
+                    printf("Global timeout while performing handshake\n");
+                    state->state = STATE_NOT_CONNECTED;
+                    return POLL_STATUS_GLOBAL_TIMEOUT;
+                }
 
+                // Listen for response
+                SeqPacket received;
+                if(_ReadPacket(state, &received)) {
 
-            // TODO Fix
+                    // Reveived ack from client?
+                    if(received.flags ==  (FLAG_ACK)) {
+                        printf("Reveiced Ack: %d\n", received.ackSequenceNumber);
+                        // Is this the Ack we want?
+                        if(received.ackSequenceNumber == state->nextSequenceNumber) {
 
+                            printf("Received correct ack!\n");
+                            // Go to connected state
+                            state->state = STATE_CONNECTED;
+                            return POLL_STATUS_NOTHING;
+                        }
+
+                    }
+                }
+
+                time(&currtime);
+
+                if(difftime(currtime, timeout) > HANDSHAKE_RESEND_TIMEOUT) {
+                     printf("Handshake resend triggered\n");
+                     time(&timeout);
+                    _ServerSendSynAck(state);
+                }
+
+                // Short sleep so we dont burn the CPU =)
+                usleep(5 * 1000);
+            }
         }
-
-
 
         break;
     case STATE_CONNECTED:
 
+        printf("Wololo!\n");
+        usleep(200 * 1000);
         // TODO Fix
 
         break;
@@ -190,14 +238,17 @@ int _ReadUDP(NetState* state, CrcPacket* packet) {
     length = recvfrom(state->sock, &tempPacket, sizeof(CrcPacket), MSG_DONTWAIT, (struct sockaddr*) &receiv_addr, &slen);
 
     if(!(length == EAGAIN || length == -1)) {
+
+        // PORT KEEP SWITCHING!!! TURNED OF FUCNTINONALITY
         // Verify ip and port
-        if(state->netIp == receiv_addr.sin_addr.s_addr && state->port == htons(receiv_addr.sin_port)) {
-            printf("Received UDP with flags: %d\n", tempPacket.sequencePacket.flags);
+        //if(state->netIp == receiv_addr.sin_addr.s_addr && state->port == htons(receiv_addr.sin_port)) {
+            printf("Received UDP from %d\n", htons(receiv_addr.sin_port));
             memcpy(packet, &tempPacket, sizeof(CrcPacket));
+
             return 1;
-        } else {
-            printf("Message received from unknown source\n");
-        }
+        //} else {
+        //    printf("Message received from unknown source\n");
+        //}
     }
 
     return 0;
@@ -231,19 +282,19 @@ int _ServerReadFirstPacket(NetState* state, SeqPacket* packet) {
     int validPacket = 0;
     CrcPacket tempPacket;
 
-    struct sockaddr_in receiv_addr;
+    //struct sockaddr_in receiv_addr;
     int length;
-    socklen_t slen = sizeof(receiv_addr);
+    socklen_t slen = sizeof(state->remoteAddr);
 
-    length = recvfrom(state->sock, &tempPacket, sizeof(CrcPacket), MSG_DONTWAIT, (struct sockaddr*) &receiv_addr, &slen);
+    length = recvfrom(state->sock, &tempPacket, sizeof(CrcPacket), MSG_DONTWAIT, (struct sockaddr*) &state->remoteAddr, &slen);
 
     if(!(length == EAGAIN || length == -1)) {
         validPacket = 1;
 
         char* ip;
-        ip = inet_ntoa(receiv_addr.sin_addr);
+        ip = inet_ntoa(state->remoteAddr.sin_addr);
         memcpy(state->ip, ip, 16);
-        state->netIp = receiv_addr.sin_addr.s_addr;
+        state->netIp = state->remoteAddr.sin_addr.s_addr;
         state->port = ntohs(state->port);
     }
 
@@ -269,6 +320,8 @@ int _ServerReadFirstPacket(NetState* state, SeqPacket* packet) {
 //Performs the real UDP send.
 void _SendUDP(NetState* state, CrcPacket* packet) {
 
+
+/*
     struct sockaddr_in targetAddr;
 
     memset((char *) &targetAddr, 0, sizeof(struct sockaddr_in));
@@ -279,11 +332,11 @@ void _SendUDP(NetState* state, CrcPacket* packet) {
     if(!inet_aton(state->ip , &targetAddr.sin_addr)) {
         printf("inet_aton failed\n");
     }
+*/
 
 
 
-
-    if (sendto(state->sock, packet, sizeof(CrcPacket), 0, (struct sockaddr*) &targetAddr, sizeof(targetAddr)) == -1)
+    if (sendto(state->sock, packet, sizeof(CrcPacket), 0, (struct sockaddr*) &state->remoteAddr, sizeof(state->remoteAddr)) == -1)
     {
         printf("UDP Send failed\n");
         exit(1);
@@ -343,22 +396,30 @@ void _ServerSendSynAck(NetState* state) {
     _SendPacket(state, &packet);
 }
 
-void _ClientHandShake(NetState* state) {
+int _ClientHandShake(NetState* state) {
     // Prepare the timeout timer
     ResetGlobalTimeout(state);
     state->state = STATE_THREEWAY_HANDSHAKE;
 
     _ClientSendSyn(state);
 
-    //time_t globalTimeout;
+    // Timer for resend timeout
+    time_t timeout;
+    time_t currtime;
+    time(&timeout);
 
+    //Listen for syn ack.
     while(1) {
-        usleep(1000* 1000);
 
+        if(TestGlobalTimeout(state)) {
+            // Global time out triggered?
+            printf("Global timeout while performing handshake\n");
+            break;
+        }
+
+        // Listen for response
         SeqPacket received;
         if(_ReadPacket(state, &received)) {
-
-            printf("Some message received...\n");
 
             // Reveived syn ack from server?
             if(received.flags ==  (FLAG_SYN | FLAG_ACK)) {
@@ -371,18 +432,27 @@ void _ClientHandShake(NetState* state) {
                     _ClientSendAck(state);
 
                     // Go to connected state
-                    break;
+                    state->state = STATE_CONNECTED;
+                    return 1;
                 }
 
             }
         }
+
+        time(&currtime);
+
+        if(difftime(currtime, timeout) > HANDSHAKE_RESEND_TIMEOUT) {
+             printf("Handshake resend triggered\n");
+             time(&timeout);
+            _ClientSendSyn(state);
+        }
+
+        // Short sleep so we dont burn the CPU =)
+        usleep(5 * 1000);
     }
 
-
     // TODO REMEMBER TO LISTEN FOR resent Syn - Ack
-
+    state->state = STATE_NOT_CONNECTED;
+    return 0;
 }
 
-void _SeverHandShake(NetState* state) {
-
-}

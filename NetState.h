@@ -20,6 +20,8 @@ typedef struct _NetState {
     char ip[16];
     in_addr_t netIp;
 
+    struct sockaddr_in remoteAddr;
+
 
 
     unsigned int nextSequenceNumber;
