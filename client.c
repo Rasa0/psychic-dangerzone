@@ -15,6 +15,7 @@ int main(void)
         fflush(stdin);
 
         ClientSend(state, c);
+        ClientRead(state);
 
     }
 

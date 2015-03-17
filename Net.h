@@ -10,6 +10,7 @@ NetState* ServerCreate(int port);
 NetState* ClientCreate(char* ip, int port);
 
 void ClientSend(NetState* state, char data);
+void ClientRead(NetState* state);
 
 char ServerRead(NetState* state);
 

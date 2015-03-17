@@ -74,12 +74,30 @@ void ClientSend(NetState* state, char data) {
 
 }
 
+void ClientRead(NetState* state) {
+    DataPacket packet;
+
+    struct sockaddr_in receiv_addr;
+    int length;
+    socklen_t slen = sizeof(receiv_addr);
+
+    printf("Read");
+
+    length = recvfrom(state->sock, &packet, sizeof(DataPacket), 0, (struct sockaddr*) &receiv_addr, &slen);
+
+    if(length == EAGAIN || length == -1) {
+        printf("ing: No data\n");
+    } else {
+        printf("ing: %c\n", packet.data);
+    }
+}
+
 char ServerRead(NetState* state) {
     DataPacket packet;
 
     struct sockaddr_in receiv_addr;
     int length;
-    socklen_t slen;
+    socklen_t slen = sizeof(receiv_addr);
 
     printf("Read");
 
@@ -88,11 +106,12 @@ char ServerRead(NetState* state) {
 
     if(length == EAGAIN || length == -1) {
         printf("ing: No data\n");
-        printf("length: %d\n", length);
         return ' ';
     } else {
         printf("ing: %c\n", packet.data);
-        printf("length: %d\n", length);
+
+        sendto(state->sock, &packet, sizeof(DataPacket), 0, (struct sockaddr*) &receiv_addr, slen);
+
         return packet.data;
     }
 
