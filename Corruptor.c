@@ -7,7 +7,7 @@ Void ReOrderGen(unsigned char* message, int nBytes,int ReOrderRate)
     {   struct timeb tmb;
         ftime(&tmb);
 
-        int et = (10+ rand()%70)/100;
+        int et = (10+ rand()%70)/10;
         int t = rand()%100;
 
         if(t < ReOrderRate)
@@ -15,7 +15,7 @@ Void ReOrderGen(unsigned char* message, int nBytes,int ReOrderRate)
             InsertInQueue(packet,tmb.millitm+et);
         }
         else
-           InsertInQueue(message,tmb.millitm+0.01);
+           InsertInQueue(message,tmb.millitm+0.2);
 }
 
 Void PaketLossGen(unsigned char* message, int nBytes,int PaketLossRate,int ReOrderRate)
