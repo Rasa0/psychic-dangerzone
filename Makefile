@@ -13,6 +13,6 @@ clean:
 	rm -f ${PROGRAMS}
 
 client: 
-	${CC} ${COPT} -o client client.c Net.c -lpthread
+	${CC} ${COPT} -o client client.c Net.c NetShared.c Checksum.c SlidingWindow.c -lpthread
 server: 
-	${CC} ${COPT} -o server server.c Net.c
+	${CC} ${COPT} -o server server.c Net.c NetShared.c Checksum.c SlidingWindow.c

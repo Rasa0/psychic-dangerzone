@@ -1,7 +1,7 @@
 #ifndef NET_H
 #define NET_H
 
-#define DEBUG_PORT 123534
+#define DEBUG_PORT 12344
 
 #define POLL_STATUS_NOTHING 0
 #define POLL_STATUS_GLOBAL_TIMEOUT 1
@@ -21,14 +21,27 @@ void ClientSendData(NetState* state, char data);
 
 int ServerPoll(NetState* state);
 
-void ServerSendTEST(NetState* state, char data);
+//Return 1 if a packet was received, and put it in packet
+int _ReadUDP(NetState* state, CrcPacket* packet);
 
-void _ReadUDP(NetState* state, CrcPacket* packet);
+// Return 1 if a packet was received. This also perform CRC validation. And removes the message if
+// CRC is invalid
+int _ReadPacket(NetState* state, SeqPacket* packet);
 
-// Adds the checksum and puts the packet though corruption and queue module
-void _SendPacket(NetState* state, SeqPacket* packet);
+// Used to read the first Syn message from the clinet. To catch target ip and port
+int _ServerReadFirstPacket(NetState* state, SeqPacket* packet);
+
 //Performs the real UDP send
 void _SendUDP(NetState* state, CrcPacket* packet);
+// Adds the checksum and puts the packet though corruption and queue module
+void _SendPacket(NetState* state, SeqPacket* packet);
+
+
+void _ClientSendSyn(NetState* state);
+void _ClientSendAck(NetState* state);
+
+void _ServerSendSynAck(NetState* state);
+
 
 void _ClientHandShake(NetState* state);
 void _SeverHandShake(NetState* state);

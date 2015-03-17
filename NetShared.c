@@ -1,6 +1,6 @@
 #include "NetShared.h"
 
-#include <time.h>>
+#include <time.h>
 
 // Returns one if the global time out have triggered
 int TestGlobalTimeout(NetState* state) {
