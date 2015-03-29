@@ -3,6 +3,7 @@
 
 #include "SlidingWindow.h"
 
+#include <netinet/in.h>
 #include <time.h>
 
 #define STATE_NOT_CONNECTED 0
@@ -17,14 +18,20 @@ typedef struct _NetState {
     int sock;
     int port;
     char ip[16];
+    in_addr_t netIp;
+
+    struct sockaddr_in remoteAddr;
+
+
 
     unsigned int nextSequenceNumber;
+    unsigned int nextRemoteSequenceNumber;
 
     unsigned int state;
 
     time_t globalTimeout;
 
-    SlidingWindow slidingWindow;
+    //SlidingWindow slidingWindow;
 
 } NetState;
 

@@ -6,12 +6,16 @@
 
 #define SLIDING_WINDOW_SIZE 1
 
+/*
 // Buffer used to contain the packets before they are put in the window
 // Or when they have been received by the server
 typedef struct _SlidingWindowInOutBuffer {
 
 
+
+    SlidingWindowInOutBuffer* nextNessage;
 } SlidingWindowInOutBuffer;
+*/
 
 
 typedef struct _SlidingWindowEntry {
@@ -24,7 +28,7 @@ typedef struct _SlidingWindowEntry {
 
 typedef struct _SlidingWindow {
 
-    SlidingWindowInOutBuffer* inOutBuffer;
+    //SlidingWindowInOutBuffer* inOutBuffer;
 
     //Circular array for the sliding window
     SeqPacket windowArray[SLIDING_WINDOW_SIZE * 2];

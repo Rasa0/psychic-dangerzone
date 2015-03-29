@@ -3,10 +3,12 @@
 #include <stdio.h>
 
 void PrintBits(unsigned char* data, int nBytes) {
+    int byte;
+    unsigned char bit;
 
-    for (int byte = 0; byte < nBytes; ++byte)
+    for (byte = 0; byte < nBytes; ++byte)
     {
-        for (unsigned char bit = 8; bit > 0; --bit)
+        for (bit = 8; bit > 0; --bit)
         {
 
             if(data[byte] & (1 << (bit-1))) {
@@ -23,12 +25,13 @@ void PrintBits(unsigned char* data, int nBytes) {
 crc GetChecksum(unsigned char* message, int nBytes)
 {
     crc  remainder = 0;	
-
+    int byte;
+    unsigned char bit;
 
     /*
      * Perform modulo-2 division, a byte at a time.
      */
-    for (int byte = 0; byte < nBytes-1; ++byte)
+    for (byte = 0; byte < nBytes-1; ++byte)
     {
         /*
          * Bring the next byte into the remainder.
@@ -38,7 +41,7 @@ crc GetChecksum(unsigned char* message, int nBytes)
         /*
          * Perform modulo-2 division, a bit at a time.
          */
-        for (unsigned char bit = 8; bit > 0; --bit)
+        for (bit = 8; bit > 0; --bit)
         {
             /*
              * Try to divide the current data bit.
@@ -64,12 +67,13 @@ crc GetChecksum(unsigned char* message, int nBytes)
 crc CheckChecksum(unsigned char* message, int nBytes)
 {
     crc  remainder = 0;
-
+    int byte;
+    unsigned char bit;
 
     /*
      * Perform modulo-2 division, a byte at a time.
      */
-    for (int byte = 0; byte < nBytes; ++byte)
+    for (byte = 0; byte < nBytes; ++byte)
     {
         /*
          * Bring the next byte into the remainder.
@@ -79,7 +83,7 @@ crc CheckChecksum(unsigned char* message, int nBytes)
         /*
          * Perform modulo-2 division, a bit at a time.
          */
-        for (unsigned char bit = 8; bit > 0; --bit)
+        for (bit = 8; bit > 0; --bit)
         {
             /*
              * Try to divide the current data bit.
