@@ -1,7 +1,8 @@
 #ifndef NET_H
 #define NET_H
 
-#define DEBUG_PORT 12312
+#define DEBUG_PORT 1234
+#define CLIENT_CONNECTION_ID 1
 
 #define POLL_STATUS_NOTHING 0
 #define POLL_STATUS_GLOBAL_TIMEOUT 1
@@ -16,12 +17,15 @@
 NetState* ServerCreate(int port);
 NetState* ClientCreate(char* ip, int port);
 
+void ServerClose(NetState* state);
+void ClientClose(NetState* state);
+
 int ClientPoll(NetState* state);
+
+int ServerPoll(NetState* state);
 
 //Send a data packet to the server
 void ClientSendData(NetState* state, char data);
-
-int ServerPoll(NetState* state);
 
 //Return 1 if a packet was received, and put it in packet
 int _ReadUDP(NetState* state, CrcPacket* packet);
@@ -41,6 +45,7 @@ void _SendPacket(NetState* state, SeqPacket* packet);
 
 void _ClientSendSyn(NetState* state);
 void _ClientSendAck(NetState* state);
+void _ClientSendFin(NetState* state);
 
 void _ServerSendSynAck(NetState* state);
 

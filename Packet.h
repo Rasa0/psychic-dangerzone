@@ -13,6 +13,8 @@ typedef struct _DataPacket {
 typedef struct _SeqPacket {
     DataPacket dataPacket;
     unsigned int flags;
+    unsigned int connectionId;
+    unsigned int windowSize;
     unsigned int sequenceNumber;    // Used for sequence number and SYN
     unsigned int ackSequenceNumber; // Used when ACK sent for sequence number
 } SeqPacket;

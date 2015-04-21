@@ -39,9 +39,6 @@ NetState* ServerCreate(int port) {
 
     state->state = STATE_NOT_CONNECTED;
 
-    // TODO FIX
-    //InitSlidingWindow(&state->slidingWindow);
-
     return state;
 }
 
@@ -57,21 +54,6 @@ NetState* ClientCreate(char* ip, int port) {
     //inet_aton(ip , &addr);
     //state->netIp = addr.s_addr;
 
-    /*
-    // test client binding
-    struct sockaddr_in addr;
-    // zero out the structure
-    memset((char *) &addr, 0, sizeof(struct sockaddr_in));
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port+1);
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    if(bind(state->sock , (struct sockaddr*)&addr, sizeof(struct sockaddr_in)) == -1) {
-        printf("Server Could not bind\n");
-    }
-    */
-
-
     memset((char *) &state->remoteAddr, 0, sizeof(struct sockaddr_in));
     state->remoteAddr.sin_family = AF_INET;
     state->remoteAddr.sin_port = htons(state->port);
@@ -82,7 +64,7 @@ NetState* ClientCreate(char* ip, int port) {
         exit(1);
     }
 
-    // TODO FIX
+    // TODO FIX. Nahh. The size of the window is obtained in the handshake
     //InitSlidingWindow(&state->slidingWindow);
 
     // Perform handshake
@@ -94,6 +76,73 @@ NetState* ClientCreate(char* ip, int port) {
     }
 
     return state;
+}
+
+void ServerClose(NetState* state) {
+    close(state->sock);
+    free(state);
+}
+
+void ClientClose(NetState* state) {
+
+    // Prepare the timeout timer
+    ResetGlobalTimeout(state);
+    state->state = STATE_TEARDOWN;
+
+    _ClientSendFin(state);
+
+    // Timer for resend timeout
+    time_t timeout;
+    time_t currtime;
+    time(&timeout);
+
+    //Listen for syn ack.
+    while(1) {
+
+        if(TestGlobalTimeout(state)) {
+            // Global time out triggered?
+            printf("Global timeout while performing handshake\n");
+            break;
+        }
+
+        // Listen for response
+        SeqPacket received;
+        if(_ReadPacket(state, &received)) {
+
+            // Reveived fin from server?
+            if(received.flags ==  (FLAG_FIN)) {
+                printf("Reveiced Fin: %d Ack: %d\n",received.sequenceNumber, received.ackSequenceNumber);
+                // Is this the Fin we want?
+                //if(received.ackSequenceNumber == state->nextSequenceNumber) {
+
+                    // Tell the server that the fin was received
+                    _ClientSendAck(state); // NOTE verify that this send the correct ack
+
+                    // Close connection
+                    close(state->sock);
+                    free(state);
+                    return;
+                //}
+
+            }
+        }
+
+        time(&currtime);
+
+        if(difftime(currtime, timeout) > HANDSHAKE_RESEND_TIMEOUT) {
+             printf("Handshake resend triggered\n");
+             time(&timeout);
+            _ClientSendFin(state);
+        }
+
+        // Short sleep so we dont burn the CPU =)
+        usleep(5 * 1000);
+    }
+
+    // Close connection
+    close(state->sock);
+    free(state);
+    return;
 }
 
 int ClientPoll(NetState* state) {
@@ -124,20 +173,6 @@ int ClientPoll(NetState* state) {
     }
 
     return POLL_STATUS_NOTHING;
-}
-
-void ClientSendData(NetState* state, char data) {
-
-    // TODO send to sliding window function
-
-
-
-    // TODO fix checksum
-
-
-
-
-
 }
 
 int ServerPoll(NetState* state) {
@@ -193,6 +228,10 @@ int ServerPoll(NetState* state) {
                         if(received.ackSequenceNumber == state->nextSequenceNumber) {
 
                             printf("Received correct ack!\n");
+
+                            // TODO Init window now
+                            //InitSlidingWindow(state->)
+
                             // Go to connected state
                             state->state = STATE_CONNECTED;
                             return POLL_STATUS_NOTHING;
@@ -215,16 +254,35 @@ int ServerPoll(NetState* state) {
         }
 
         break;
+    case STATE_TEARDOWN:
+
+        // NOTE should this be here?
+
+        break;
     case STATE_CONNECTED:
 
-        printf("Wololo!\n");
-        usleep(200 * 1000);
+
+        //usleep(200 * 1000);
         // TODO Fix
 
         break;
     }
 
     return POLL_STATUS_NOTHING;
+}
+
+void ClientSendData(NetState* state, char data) {
+
+    // TODO send to sliding window function
+
+
+
+    // TODO fix checksum
+
+
+
+
+
 }
 
 int _ReadUDP(NetState* state, CrcPacket* packet) {
@@ -238,17 +296,10 @@ int _ReadUDP(NetState* state, CrcPacket* packet) {
     length = recvfrom(state->sock, &tempPacket, sizeof(CrcPacket), MSG_DONTWAIT, (struct sockaddr*) &receiv_addr, &slen);
 
     if(!(length == EAGAIN || length == -1)) {
+        printf("Received UDP from %d\n", htons(receiv_addr.sin_port));
+        memcpy(packet, &tempPacket, sizeof(CrcPacket));
 
-        // PORT KEEP SWITCHING!!! TURNED OF FUCNTINONALITY
-        // Verify ip and port
-        //if(state->netIp == receiv_addr.sin_addr.s_addr && state->port == htons(receiv_addr.sin_port)) {
-            printf("Received UDP from %d\n", htons(receiv_addr.sin_port));
-            memcpy(packet, &tempPacket, sizeof(CrcPacket));
-
-            return 1;
-        //} else {
-        //    printf("Message received from unknown source\n");
-        //}
+        return 1;
     }
 
     return 0;
@@ -276,7 +327,7 @@ int _ReadPacket(NetState* state, SeqPacket* packet) {
     return 0;
 }
 
-// Used to read the first Syn message from the clinet. To catch target ip and port
+// Used to read the first Syn message from the client. To catch target ip and port
 int _ServerReadFirstPacket(NetState* state, SeqPacket* packet) {
 
     int validPacket = 0;
@@ -384,6 +435,16 @@ void _ClientSendAck(NetState* state) {
     _SendPacket(state, &packet);
 }
 
+void _ClientSendFin(NetState* state) {
+    SeqPacket packet;
+    packet.dataPacket.data = 0;
+    packet.flags = FLAG_FIN;
+    // Mark the Fin with a sequence number
+    packet.sequenceNumber = state->nextSequenceNumber;
+
+    _SendPacket(state, &packet);
+}
+
 void _ServerSendSynAck(NetState* state) {
     SeqPacket packet;
     packet.dataPacket.data = 0;
@@ -392,6 +453,10 @@ void _ServerSendSynAck(NetState* state) {
     packet.sequenceNumber = state->nextSequenceNumber;
     // Ack the remote sequence number received from the previous received Syn
     packet.ackSequenceNumber = state->nextRemoteSequenceNumber;
+
+    // Tell the client a window size and a connection id
+    windowSize = packet.windowSize = SLIDING_WINDOW_SIZE;
+    connectionId = packet.connectionId = rand() % 32;
 
     _SendPacket(state, &packet);
 }
@@ -429,13 +494,19 @@ int _ClientHandShake(NetState* state) {
                     // Rember the sequenc number of the servers Syn
                     state->nextRemoteSequenceNumber = received.sequenceNumber;
 
+                    // Remember window size and connection id determined by server
+                    state->windowSize = received.windowSize;
+                    state->connectionId = received.connectionId;
+
+                    // TODO Init window now
+                    //InitSlidingWindow(state->)
+
                     _ClientSendAck(state);
 
                     // Go to connected state
                     state->state = STATE_CONNECTED;
                     return 1;
                 }
-
             }
         }
 
@@ -452,6 +523,7 @@ int _ClientHandShake(NetState* state) {
     }
 
     // TODO REMEMBER TO LISTEN FOR resent Syn - Ack
+    // And remember that the server might assign a new connection id to.
     state->state = STATE_NOT_CONNECTED;
     return 0;
 }

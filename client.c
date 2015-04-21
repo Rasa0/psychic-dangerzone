@@ -5,23 +5,19 @@
 #include "Net.h"
 #include "Checksum.h"
 
+int run = 1;
+
 // Thread that keep polling the network, eventhough client input is blocking
 void* PollThread(void* args) {
     NetState* state = (NetState*)args;
 
-    while(1) {
+    while(run) {
         ClientPoll(state);
-        usleep(10 * 1000);
+        usleep(1000 * 1000);
     }
+
+    return 0;
 }
-
-typedef struct _Meh {
-    unsigned int stuffMEH;
-
-    unsigned char padding[3];
-    unsigned char check;
-} Meh;
-
 
 int main(void)
 {
@@ -48,69 +44,22 @@ int main(void)
                 char c = getchar();
                 fflush(stdin);
 
-                ClientSendData(state, c);
+                if(c == 'q') {
+                    break;
+                } else {
+                    ClientSendData(state, c);
+                }
 
                 //ClientReadTEST(state);
             }
-    }
+        }
     } else {
         printf("Could not connect to server!\n");
     }
 
-
-/*
-    printf("Meh test\n----------\n");
-
-    printf("Size of Meh: %d\n", sizeof(Meh));
-
-    Meh meh;
-
-    meh.check = 0;
-    crc sum = GetChecksum((unsigned char*)&meh, sizeof(Meh));
-    meh.check = sum;
-
-    printf("%d\n", CheckChecksum((unsigned char*)&meh, sizeof(Meh)));
-
-
-    printf("\nPack test\n----------\n");
-
-
-    printf("Sizeof Data: %d \n", sizeof(DataPacket));
-    printf("Sizeof Seq : %d \n", sizeof(SeqPacket));
-    printf("Sizeof Crc : %d \n", sizeof(CrcPacket));
-
-    CrcPacket pack;
-
-pack.padding[0] = 4;
-    sum = GetChecksum((unsigned char*)&pack, sizeof(CrcPacket));
-    pack.checksum = sum;
-
-    printf("After sum: %d\n", CheckChecksum((unsigned char*)&pack, sizeof(CrcPacket)));
-*/
-
-/*
-    typedef struct _DataPacket {
-        char data;
-        char padding[3];
-    } DataPacket;
-
-    typedef struct _SeqPacket {
-        DataPacket dataPacket;
-        unsigned int flags;
-        unsigned int sequenceNumber;    // Used for sequence number and SYN
-        unsigned int ackSequenceNumber; // Used when ACK sent for sequence number
-    } SeqPacket;
-
-    typedef struct _CrcPacket {
-        SeqPacket sequencePacket;
-        char padding[3];
-        unsigned char checksum;
-    } CrcPacket;
-*/
-
-
-
-
+    run = 0;
+    pthread_join(thread, NULL);
+    ClientClose(state);
 
     return 0;
 }

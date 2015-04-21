@@ -9,6 +9,7 @@
 #define STATE_NOT_CONNECTED 0
 #define STATE_THREEWAY_HANDSHAKE 1
 #define STATE_CONNECTED 2
+#define STATE_TEARDOWN 3
 
 
 
@@ -22,7 +23,8 @@ typedef struct _NetState {
 
     struct sockaddr_in remoteAddr;
 
-
+    unsigned int windowSize;
+    unsigned int connectionId;
 
     unsigned int nextSequenceNumber;
     unsigned int nextRemoteSequenceNumber;
